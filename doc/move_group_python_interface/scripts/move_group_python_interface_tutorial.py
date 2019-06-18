@@ -225,6 +225,7 @@ class MoveGroupPythonIntefaceTutorial(object):
     # In practice, you should use the class variables directly unless you have a good
     # reason not to.
     move_group = self.move_group
+    robot = self.robot
 
     ## BEGIN_SUB_TUTORIAL plan_cartesian_path
     ##
@@ -259,9 +260,10 @@ class MoveGroupPythonIntefaceTutorial(object):
 
     # Apply time parametrization to planned path.
     if use_time_parametrization:
-      ref_state = moveit_msgs.msg.RobotState()
-      ref_state.joint_state.name = plan.joint_trajectory.joint_names
-      ref_state.joint_state.position =  plan.joint_trajectory.points[0].positions
+      ref_state = robot.get_current_state()
+      # ref_state = moveit_msgs.msg.RobotState()
+      # ref_state.joint_state.name = plan.joint_trajectory.joint_names
+      # ref_state.joint_state.position =  plan.joint_trajectory.points[0].positions
       plan_retimed = move_group.retime_trajectory(ref_state, plan, 0.05)
       print("motion duration before retime: %s [sec]" % plan.joint_trajectory.points[-1].time_from_start.to_sec())
       print("motion duration after retime: %s [sec]" % plan_retimed.joint_trajectory.points[-1].time_from_start.to_sec())
