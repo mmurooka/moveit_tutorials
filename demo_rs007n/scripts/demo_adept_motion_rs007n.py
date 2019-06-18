@@ -88,13 +88,15 @@ class DemoAdeptMotion(object):
 
     # Apply time parametrization to planned path.
     if use_time_parametrization:
-      ref_state = self.robot.get_current_state()
+      ref_state = self.robot.get_current_state() # I don't know this is OK
       # ref_state = moveit_msgs.msg.RobotState()
       # ref_state.joint_state.name = plan.joint_trajectory.joint_names
       # ref_state.joint_state.position =  plan.joint_trajectory.points[0].positions
       plan_retimed = self.move_group.retime_trajectory(ref_state, plan, 0.1)
-      print("motion duration before retime: %s [sec]" % plan.joint_trajectory.points[-1].time_from_start.to_sec())
-      print("motion duration after retime: %s [sec]" % plan_retimed.joint_trajectory.points[-1].time_from_start.to_sec())
+      print("motion duration before retime: %s [sec]"
+            % plan.joint_trajectory.points[-1].time_from_start.to_sec())
+      print("motion duration after retime: %s [sec]"
+            % plan_retimed.joint_trajectory.points[-1].time_from_start.to_sec())
       plan = plan_retimed
 
     return plan, fraction
@@ -106,7 +108,7 @@ class DemoAdeptMotion(object):
   def display_motion(self, plan):
     print "=" * 10, " Display adept motion."
     display_trajectory = moveit_msgs.msg.DisplayTrajectory()
-    display_trajectory.trajectory_start = self.robot.get_current_state()
+    display_trajectory.trajectory_start = self.robot.get_current_state() # I don't know this is OK
     display_trajectory.trajectory.append(plan)
     self.display_trajectory_publisher.publish(display_trajectory);
 
@@ -141,12 +143,16 @@ class DemoAdeptMotion(object):
     pdf.savefig()
     pdf.close()
 
+
 def main():
   demo = DemoAdeptMotion()
   demo.go_to_initial_pose()
   plan, fraction = demo.plan_adept_motion(use_time_parametrization=True)
-  demo.execute_motion(plan)
-  demo.save_motion_graph(plan)
+  if fraction == 1.0:
+    demo.execute_motion(plan)
+    demo.save_motion_graph(plan)
+  else:
+    rospy.logerr('plan failed.')
 
   import IPython
   IPython.embed()
