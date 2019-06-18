@@ -92,7 +92,13 @@ class DemoAdeptMotion(object):
       # ref_state = moveit_msgs.msg.RobotState()
       # ref_state.joint_state.name = plan.joint_trajectory.joint_names
       # ref_state.joint_state.position =  plan.joint_trajectory.points[0].positions
-      plan_retimed = self.move_group.retime_trajectory(ref_state, plan, 0.1)
+      plan_retimed = self.move_group.retime_trajectory(
+        ref_state, plan,
+        velocity_scaling_factor=0.1,
+        # Following PR is necessary to use `acceleration_scaling_factor` argument:
+        # https://github.com/ros-planning/moveit/pull/1506
+        acceleration_scaling_factor=0.1
+      )
       print("motion duration before retime: %s [sec]"
             % plan.joint_trajectory.points[-1].time_from_start.to_sec())
       print("motion duration after retime: %s [sec]"
@@ -121,10 +127,10 @@ class DemoAdeptMotion(object):
 
     axes[0].set_xlabel('time [sec]')
     axes[0].set_ylabel('position [rad]')
-    axes[0].legend()
     for j in range(joint_num):
       pos = [p.positions[j] for p in plan.joint_trajectory.points]
       axes[0].plot(time, pos, linewidth=1, marker='o', label=joint_names[j])
+    axes[0].legend()
 
     axes[1].set_xlabel('time [sec]')
     axes[1].set_ylabel('velocity [rad/sec]')
