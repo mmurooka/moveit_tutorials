@@ -220,7 +220,7 @@ class MoveGroupPythonIntefaceTutorial(object):
     return all_close(pose_goal, current_pose, 0.01)
 
 
-  def plan_cartesian_path(self, scale=1):
+  def plan_cartesian_path(self, scale=1, use_time_parametrization=False):
     # Copy class variables to local variables to make the web tutorials more clear.
     # In practice, you should use the class variables directly unless you have a good
     # reason not to.
@@ -256,6 +256,16 @@ class MoveGroupPythonIntefaceTutorial(object):
                                        waypoints,   # waypoints to follow
                                        0.01,        # eef_step
                                        0.0)         # jump_threshold
+
+    # Apply time parametrization to planned path.
+    if use_time_parametrization:
+      ref_state = moveit_msgs.msg.RobotState()
+      ref_state.joint_state.name = plan.joint_trajectory.joint_names
+      ref_state.joint_state.position =  plan.joint_trajectory.points[0].positions
+      plan_retimed = move_group.retime_trajectory(ref_state, plan, 0.05)
+      print("motion duration before retime: %s [sec]" % plan.joint_trajectory.points[-1].time_from_start.to_sec())
+      print("motion duration after retime: %s [sec]" % plan_retimed.joint_trajectory.points[-1].time_from_start.to_sec())
+      plan = plan_retimed
 
     # Note: We are just planning, not asking move_group to actually move the robot yet:
     return plan, fraction
@@ -470,6 +480,10 @@ def main():
     print "============ Press `Enter` to plan and display a Cartesian path ..."
     raw_input()
     cartesian_plan, fraction = tutorial.plan_cartesian_path()
+
+    print "============ Press `Enter` to plan and display a Cartesian path with Time Parametrization ..."
+    raw_input()
+    cartesian_plan, fraction = tutorial.plan_cartesian_path(use_time_parametrization=True)
 
     print "============ Press `Enter` to display a saved trajectory (this will replay the Cartesian path)  ..."
     raw_input()
