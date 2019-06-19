@@ -92,10 +92,10 @@ int main(int argc, char** argv)
   psm->startStateMonitor();
   psm->startSceneMonitor();
 
-  while (!psm->getStateMonitor()->haveCompleteState() && ros::ok())
-  {
-    ROS_INFO_STREAM_THROTTLE_NAMED(1, node_name, "Waiting for complete state from topic ");
-  }
+  // while (!psm->getStateMonitor()->haveCompleteState() && ros::ok())
+  // {
+  //   ROS_INFO_STREAM_THROTTLE_NAMED(1, node_name, "Waiting for complete state from topic ");
+  // }
   // We will now construct a loader to load a planner, by name.
   // Note that we are using the ROS pluginlib library here.
   boost::scoped_ptr<pluginlib::ClassLoader<planning_interface::PlannerManager>> planner_plugin_loader;
