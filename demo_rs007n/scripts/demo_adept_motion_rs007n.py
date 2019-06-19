@@ -29,13 +29,10 @@ class DemoAdeptMotion(object):
                                                    queue_size=20)
 
     # print information
-    planning_frame = move_group.get_planning_frame()
-    print "=" * 10, " Planning frame: %s" % planning_frame
-    eef_link = move_group.get_end_effector_link()
-    print "=" * 10, " End effector link: %s" % eef_link
-    print "=" * 10, " Printing robot state"
-    print robot.get_current_state()
-    print ""
+    # print "=" * 10, " Planning frame: %s" % move_group.get_planning_frame()
+    # print "=" * 10, " End effector link: %s" % move_group.get_end_effector_link()
+    # print "=" * 10, " Printing robot state"
+    # print robot.get_current_state()
 
     self.robot = robot
     self.move_group = move_group
@@ -67,59 +64,62 @@ class DemoAdeptMotion(object):
     return waypoints
 
   def go_to_initial_pose(self):
-    print "=" * 10, " Send zero joint angle."
+    rospy.loginfo("Send zero joint angle.")
     joint_goal = [0.] * len(self.move_group.get_joints())
     self.move_group.go(joint_goal, wait=True)
     self.move_group.stop()
 
-    print "=" * 10, " Send initial pose."
+    rospy.loginfo("Send initial pose.")
     pose_goal = self.get_initial_pose()
     self.move_group.set_pose_target(pose_goal)
     self.move_group.go()
     self.move_group.stop()
 
-  def plan_adept_motion(self, use_time_parametrization=False):
-    print "=" * 10, " Plan adept motion."
+  def plan_adept_motion(self):
+    rospy.loginfo("Plan adept motion.")
     waypoints = self.get_adept_waypoints()
     (plan, fraction) = self.move_group.compute_cartesian_path(
       waypoints,   # waypoints to follow
-      0.01,        # eef_step
+      0.005,        # eef_step
       0.0)         # jump_threshold
-
-    # Apply time parametrization to planned path.
-    if use_time_parametrization:
-      ref_state = self.robot.get_current_state() # I don't know this is OK
-      # ref_state = moveit_msgs.msg.RobotState()
-      # ref_state.joint_state.name = plan.joint_trajectory.joint_names
-      # ref_state.joint_state.position =  plan.joint_trajectory.points[0].positions
-      plan_retimed = self.move_group.retime_trajectory(
-        ref_state, plan,
-        velocity_scaling_factor=0.1,
-        # Following PR is necessary to use `acceleration_scaling_factor` argument:
-        # https://github.com/ros-planning/moveit/pull/1506
-        acceleration_scaling_factor=0.1
-      )
-      print("motion duration before retime: %s [sec]"
-            % plan.joint_trajectory.points[-1].time_from_start.to_sec())
-      print("motion duration after retime: %s [sec]"
-            % plan_retimed.joint_trajectory.points[-1].time_from_start.to_sec())
-      plan = plan_retimed
 
     return plan, fraction
 
+  def apply_time_parametrization(self, plan, time_param):
+    ref_state = self.robot.get_current_state() # I don't know this is OK
+    # ref_state = moveit_msgs.msg.RobotState()
+    # ref_state.joint_state.name = plan.joint_trajectory.joint_names
+    # ref_state.joint_state.position =  plan.joint_trajectory.points[0].positions
+    plan_retimed = self.move_group.retime_trajectory(
+      ref_state, plan,
+      velocity_scaling_factor=0.1,
+      # Following PR is necessary to use `acceleration_scaling_factor` argument:
+      # https://github.com/ros-planning/moveit/pull/1506
+      acceleration_scaling_factor=0.1,
+      # MoveIt should be mmurooka/select-retime-alg branch to use `algorithm` argument.
+      # (This branch also contains above PR.)
+      algorithm=time_param
+    )
+    print("motion duration before retime (%d points): %s [sec]"
+          % (len(plan.joint_trajectory.points), plan.joint_trajectory.points[-1].time_from_start.to_sec()))
+    print("motion duration after retime (%d points): %s [sec]"
+          % (len(plan_retimed.joint_trajectory.points), plan_retimed.joint_trajectory.points[-1].time_from_start.to_sec()))
+    return plan_retimed
+
   def execute_motion(self, plan):
-    print "=" * 10, " Execute adept motion."
+    rospy.loginfo("Execute adept motion.")
     self.move_group.execute(plan, wait=True)
 
   def display_motion(self, plan):
-    print "=" * 10, " Display adept motion."
+    rospy.loginfo("Display adept motion.")
     display_trajectory = moveit_msgs.msg.DisplayTrajectory()
     display_trajectory.trajectory_start = self.robot.get_current_state() # I don't know this is OK
     display_trajectory.trajectory.append(plan)
     self.display_trajectory_publisher.publish(display_trajectory);
 
-  def save_motion_graph(self, plan):
+  def save_motion_graph(self, plan, pdf_suffix='', pdf_title=''):
     (fig, axes) = plt.subplots(nrows=3,ncols=1,figsize=(10,100))
+    fig.suptitle(pdf_title, fontsize=28)
 
     joint_names = plan.joint_trajectory.joint_names
     joint_num = len(joint_names)
@@ -144,21 +144,30 @@ class DemoAdeptMotion(object):
       pos = [p.accelerations[j] for p in plan.joint_trajectory.points]
       axes[2].plot(time, pos, linewidth=1, marker='o', label=joint_names[j])
 
-    fig.show()
-    pdf = PdfPages('/tmp/demo_adept_motion_rs007n.pdf')
+    plt.pause(.001)
+    filename='/tmp/demo_adept_motion_rs007n' + pdf_suffix + '.pdf'
+    pdf = PdfPages(filename)
     pdf.savefig()
     pdf.close()
+    rospy.loginfo('Save graph to %s' % filename)
 
 
 def main():
   demo = DemoAdeptMotion()
   demo.go_to_initial_pose()
-  plan, fraction = demo.plan_adept_motion(use_time_parametrization=True)
+  plan, fraction = demo.plan_adept_motion()
   if fraction == 1.0:
+    demo.save_motion_graph(plan, '', 'No Time Parametrization')
+    plan_itp = demo.apply_time_parametrization(plan, "iterative_time_parameterization")
+    demo.save_motion_graph(plan_itp, '_itp', 'Iterative Time Parametrization')
+    plan_isp = demo.apply_time_parametrization(plan, "iterative_spline_parameterization")
+    demo.save_motion_graph(plan_isp, '_isp', 'Iterative Spline Parametrization')
+    plan_totg = demo.apply_time_parametrization(plan, "time_optimal_trajectory_generation")
+    demo.save_motion_graph(plan_totg, '_totg', 'Time Optimal Trajectory Generation (New)')
+
     demo.execute_motion(plan)
-    demo.save_motion_graph(plan)
   else:
-    rospy.logerr('plan failed.')
+    rospy.logerr('Plan failed.')
 
   import IPython
   IPython.embed()
