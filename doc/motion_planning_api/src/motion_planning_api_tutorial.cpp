@@ -92,10 +92,26 @@ int main(int argc, char** argv)
   psm->startStateMonitor();
   psm->startSceneMonitor();
 
-  while (!psm->getStateMonitor()->haveCompleteState() && ros::ok())
-  {
-    ROS_INFO_STREAM_THROTTLE_NAMED(1, node_name, "Waiting for complete state from topic ");
-  }
+  std::vector<std::string> missing_states;
+  ros::Rate rate(50);
+  while (!psm->getStateMonitor()->haveCompleteState(missing_states) && ros::ok())
+    {
+      ROS_INFO_STREAM_THROTTLE_NAMED(1, node_name, "Waiting for complete state from topic ");
+      // for (auto ms : missing_states) {
+      //   ROS_INFO_STREAM_NAMED(node_name, ms);
+      // }
+      // ROS_INFO_STREAM_THROTTLE_NAMED(1, node_name, "robot_model->getRootJoint()->getType(): "
+      //                                << robot_model->getRootJoint()->getType());
+      // ROS_INFO_STREAM_THROTTLE_NAMED(1, node_name, "robot_model->getRootLink()->getName(): "
+      //                                << robot_model->getRootLink()->getName());
+      // ROS_INFO_STREAM_THROTTLE_NAMED(1, node_name, "robot_model->getModelFrame(): "
+      //                                << robot_model->getModelFrame());
+      // ROS_INFO_STREAM_THROTTLE_NAMED(1, node_name, "robot_model->getMultiDOFJointModels().empty(): "
+      //                                << robot_model->getMultiDOFJointModels().empty());
+      missing_states.clear();
+      ros::spinOnce();
+      rate.sleep();
+    }
   // We will now construct a loader to load a planner, by name.
   // Note that we are using the ROS pluginlib library here.
   boost::scoped_ptr<pluginlib::ClassLoader<planning_interface::PlannerManager>> planner_plugin_loader;
