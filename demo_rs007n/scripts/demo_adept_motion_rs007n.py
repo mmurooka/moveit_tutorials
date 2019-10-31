@@ -98,7 +98,8 @@ class DemoAdeptMotion(object):
       acceleration_scaling_factor=0.1,
       # MoveIt should be mmurooka/select-retime-alg branch to use `algorithm` argument.
       # (This branch also contains above PR.)
-      algorithm=time_param
+      algorithm=time_param,
+      resample_dt=0.03
     )
     print("motion duration before retime (%d points): %s [sec]"
           % (len(plan.joint_trajectory.points), plan.joint_trajectory.points[-1].time_from_start.to_sec()))
