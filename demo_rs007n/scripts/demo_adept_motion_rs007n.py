@@ -85,22 +85,27 @@ class DemoAdeptMotion(object):
 
     return plan, fraction
 
-  def apply_time_parametrization(self, plan, time_param):
+  def apply_time_parametrization(self, plan, algorithm):
     ref_state = self.robot.get_current_state() # I don't know this is OK
     # ref_state = moveit_msgs.msg.RobotState()
     # ref_state.joint_state.name = plan.joint_trajectory.joint_names
     # ref_state.joint_state.position =  plan.joint_trajectory.points[0].positions
-    plan_retimed = self.move_group.retime_trajectory(
-      ref_state, plan,
-      velocity_scaling_factor=0.1,
-      # Following PR is necessary to use `acceleration_scaling_factor` argument:
-      # https://github.com/ros-planning/moveit/pull/1506
-      acceleration_scaling_factor=0.1,
-      # MoveIt should be mmurooka/select-retime-alg branch to use `algorithm` argument.
-      # (This branch also contains above PR.)
-      algorithm=time_param,
-      resample_dt=0.03
-    )
+
+    if algorithm == "time_optimal_trajectory_generation":
+      plan_retimed = self.move_group.retime_trajectory_totg(
+        ref_state, plan,
+        velocity_scaling_factor=0.1,
+        acceleration_scaling_factor=0.1,
+        resample_dt=0.03
+      )
+    else:
+      plan_retimed = self.move_group.retime_trajectory(
+        ref_state, plan,
+        velocity_scaling_factor=0.1,
+        acceleration_scaling_factor=0.1,
+        algorithm=algorithm
+      )
+
     print("motion duration before retime (%d points): %s [sec]"
           % (len(plan.joint_trajectory.points), plan.joint_trajectory.points[-1].time_from_start.to_sec()))
     print("motion duration after retime (%d points): %s [sec]"
